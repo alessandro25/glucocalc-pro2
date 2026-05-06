@@ -13,14 +13,14 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
 <style>
 :root{
-  --bg:#060d1b;--surface:#0d1829;--card:#1a2440;--card2:#1f2d4e;
-  --border:#2a3d5e;--border2:#344d72;
-  --accent:#22d3ee;--accent-d:rgba(34,211,238,.14);--accent-b:rgba(34,211,238,.3);
+  --bg:#0a0f2e;--surface:#111638;--card:#181f45;--card2:#1e2750;
+  --border:#2d3a6e;--border2:#3a4a85;
+  --accent:#a78bfa;--accent-d:rgba(167,139,250,.15);--accent-b:rgba(167,139,250,.35);
   --danger:#ef4444;--danger-d:rgba(239,68,68,.13);--danger-b:rgba(239,68,68,.35);
   --warn:#f59e0b;--warn-d:rgba(245,158,11,.13);--warn-b:rgba(245,158,11,.35);
   --ok:#10b981;--ok-d:rgba(16,185,129,.12);
-  --sport:#a78bfa;--sport-d:rgba(167,139,250,.15);--sport-b:rgba(167,139,250,.35);
-  --text:#e2e8f0;--muted:#94a3b8;--dim:#475569;
+  --sport:#60a5fa;--sport-d:rgba(96,165,250,.15);--sport-b:rgba(96,165,250,.35);
+  --text:#e2e8f0;--muted:#94a3b8;--dim:#4a5a8a;
   --mono:'IBM Plex Mono',monospace;--sans:'IBM Plex Sans',sans-serif;
   --nav:60px;--top:0px;
 }
@@ -171,7 +171,7 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--s
 .inj-meta{font-size:11px;color:var(--muted);margin-top:2px;}
 .inj-del{background:none;border:none;color:var(--dim);font-size:20px;cursor:pointer;padding:0 2px;line-height:1;}
 .prog-track{background:var(--surface);border-radius:4px;height:6px;overflow:hidden;}
-.prog-bar{height:100%;border-radius:4px;background:linear-gradient(to right,var(--accent),var(--ok));transition:width .6s;}
+.prog-bar{height:100%;border-radius:4px;background:linear-gradient(to right,var(--accent),#60a5fa);transition:width .6s;}
 .inj-foot{font-size:11px;color:var(--muted);display:flex;justify-content:space-between;margin-top:4px;}
 .empty{text-align:center;padding:24px;color:var(--dim);font-size:13px;line-height:1.7;}
  
@@ -711,7 +711,7 @@ function updateChart(){
   gChart=new Chart(document.getElementById('glu-chart'),{
     type:'line',plugins:[zonePlugin],
     data:{labels,datasets:[
-      {label:'Con correzione',data:dataWith,borderColor:'#22d3ee',borderWidth:2.5,pointRadius:0,tension:.35,fill:false},
+      {label:'Con correzione',data:dataWith,borderColor:'#a78bfa',borderWidth:2.5,pointRadius:0,tension:.35,fill:false},
       {label:'Senza correzione',data:dataBase,borderColor:'#475569',borderWidth:1.5,pointRadius:0,tension:.35,fill:false,borderDash:[5,4]}
     ]},
     options:{
