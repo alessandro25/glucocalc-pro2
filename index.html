@@ -544,48 +544,54 @@ function calcCorrection(){
 }
  
 // ── PREDICTIVE CURVE ───────────────────────────────────────────
-// pendingDose = correzione appena calcolata (iniettata adesso t=0)
 function calcCurve(pendingDose=0){
   const gRaw=parseFloat(S.glucose);
   if(isNaN(gRaw)||gRaw<=0)return null;
   const gMg=fromD(gRaw);
-  const rate=getRate();
+  const rate=getRate(); // mg/dL per min (tendenza attuale)
   const now=Date.now();
-  const{val:iob}=getEffectiveIOB();
  
-  // Tutte le iniezioni attive (log + prevBolus come virtuale)
+  // Iniezioni attive dal log
   const activeInj=[];
   S.injections.forEach(inj=>activeInj.push({dose:inj.dose,mAgo:(now-inj.ts)/60000}));
+  // Bolo precedente (prevBolus)
   if(S.prevBolus&&!S.iobManual){
     const mAgo=(now-S.prevBolus.ts)/60000;
     if(mAgo<S.dia)activeInj.push({dose:S.prevBolus.dose,mAgo});
   }
-  // IOB manuale: lo trattiamo come bolo fatto 1 min fa con dose scalata
-  if(S.iobManual&&!isNaN(parseFloat(S.iobManual))){
-    // già incluso nel calcolo tramite getEffectiveIOB, non serve aggiungere iniezione virtuale
-  }
  
   const ptsBase=[],ptsWith=[];
+ 
   for(let t=0;t<=S.dia;t+=5){
-    // Base: traiettoria senza correzione aggiuntiva (solo IOB esistente)
-    let gB=gMg+rate*t;
+    // ── Componente tendenza: si esaurisce esponenzialmente in ~30 min ──
+    // Simula il momentum CGM che rallenta man mano che l'insulina agisce
+    const trendDecay=Math.exp(-t/30); // dimezza ogni 30 min
+    const trendContrib=rate*30*(1-Math.exp(-t/30)); // integrale del rate attenuato
+ 
+    // ── Componente IOB esistente ──
+    let iobEffect=0;
     activeInj.forEach(inj=>{
-      gB-=(iobRem(inj.mAgo)-iobRem(inj.mAgo+t))*inj.dose*S.isf;
+      const absorbed=iobRem(inj.mAgo)-iobRem(inj.mAgo+t);
+      iobEffect+=absorbed*inj.dose*S.isf;
     });
-    // Se IOB manuale, simuliamo la sua azione come decadimento lineare
+    // IOB manuale: decadimento lineare sull'intera DIA
     if(S.iobManual&&!isNaN(parseFloat(S.iobManual))){
       const iobNow=parseFloat(S.iobManual);
-      const frac=Math.max(0,1-t/S.dia);
-      gB-=(iobNow-iobNow*frac)*S.isf;
+      const absorbed=1-Math.max(0,1-t/S.dia);
+      iobEffect+=absorbed*iobNow*S.isf;
     }
-    ptsBase.push({t,g:Math.max(20,gB)});
  
-    // Con correzione: aggiunge pendingDose iniettata adesso
-    let gW=gB;
+    // ── Curva BASE (senza correzione aggiuntiva) ──
+    const gB=Math.max(20, gMg + trendContrib - iobEffect);
+    ptsBase.push({t,g:gB});
+ 
+    // ── Curva CON correzione ──
+    let corrEffect=0;
     if(pendingDose>0){
-      gW-=(iobRem(0)-iobRem(t))*pendingDose*S.isf;
+      corrEffect=(iobRem(0)-iobRem(t))*pendingDose*S.isf;
     }
-    ptsWith.push({t,g:Math.max(20,gW)});
+    const gW=Math.max(20, gB - corrEffect);
+    ptsWith.push({t,g:gW});
   }
   return{ptsBase,ptsWith};
 }
