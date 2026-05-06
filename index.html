@@ -256,21 +256,43 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--s
   </div>
  
   <div class="card">
-    <div class="card-lbl">IOB — Insulina Attiva</div>
-    <div id="iob-from-log" style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;padding:10px 12px;background:var(--surface);border-radius:10px;border:1px solid var(--border);">
+    <div class="card-lbl">IOB — Coda del bolo precedente</div>
+ 
+    <!-- Risultato IOB calcolato -->
+    <div id="iob-result-row" style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;padding:10px 12px;background:var(--surface);border-radius:10px;border:1px solid var(--border);">
       <div>
-        <div style="font-size:11px;color:var(--muted);">Dal log iniezioni</div>
-        <div id="iob-log-val" style="font-family:var(--mono);font-size:22px;font-weight:600;color:var(--accent);">0.00 U</div>
+        <div style="font-size:11px;color:var(--muted);">IOB residuo stimato</div>
+        <div id="iob-calc-val" style="font-family:var(--mono);font-size:26px;font-weight:600;color:var(--accent);">0.00 U</div>
       </div>
-      <button onclick="goToLog()" style="background:var(--accent-d);border:1px solid var(--accent-b);color:var(--accent);padding:8px 12px;border-radius:10px;font-size:12px;font-weight:600;cursor:pointer;">+ Aggiungi</button>
+      <div id="iob-calc-sub" style="font-size:11px;color:var(--dim);text-align:right;line-height:1.5;"></div>
     </div>
-    <div style="display:flex;align-items:center;gap:8px">
-      <label style="font-size:13px;color:var(--muted);flex:1;">Oppure inserisci manualmente</label>
-      <input type="number" id="iob-manual-inp" inputmode="decimal" placeholder="0.0" step="0.1"
-        style="width:80px;background:var(--surface);border:1.5px solid var(--border);border-radius:8px;padding:8px 10px;color:var(--text);font-family:var(--mono);font-size:18px;text-align:center;-webkit-appearance:none;">
-      <span style="font-family:var(--mono);font-size:11px;color:var(--dim);">U</span>
+ 
+    <!-- Opzione A: ultimo bolo con ora -->
+    <div style="margin-bottom:10px;">
+      <div style="font-size:11px;color:var(--muted);margin-bottom:6px;font-weight:600;text-transform:uppercase;letter-spacing:.08em;">Ultimo bolo — dose + orario</div>
+      <div style="display:flex;gap:8px;align-items:center;">
+        <input type="number" id="prev-dose-inp" inputmode="decimal" placeholder="Unità" step="0.5"
+          style="width:90px;background:var(--surface);border:1.5px solid var(--border);border-radius:10px;padding:10px;color:var(--text);font-family:var(--mono);font-size:20px;text-align:center;-webkit-appearance:none;">
+        <span style="color:var(--dim);font-size:13px;">U alle</span>
+        <input type="time" id="prev-time-inp"
+          style="flex:1;background:var(--surface);border:1.5px solid var(--border);border-radius:10px;padding:10px;color:var(--text);font-family:var(--mono);font-size:16px;text-align:center;">
+        <button onclick="applyPrevBolus()" style="background:var(--ok);color:#000;border:none;border-radius:10px;padding:10px 14px;font-size:13px;font-weight:700;cursor:pointer;">OK</button>
+      </div>
     </div>
-    <div id="iob-source-lbl" style="font-size:11px;color:var(--dim);margin-top:6px;text-align:right;"></div>
+ 
+    <div style="text-align:center;color:var(--dim);font-size:12px;margin:8px 0;">— oppure —</div>
+ 
+    <!-- Opzione B: IOB diretto (es. da microinfusore) -->
+    <div style="display:flex;align-items:center;gap:8px;">
+      <div style="flex:1;">
+        <div style="font-size:11px;color:var(--muted);margin-bottom:4px;font-weight:600;text-transform:uppercase;letter-spacing:.08em;">IOB diretto (es. dal microinfusore)</div>
+        <input type="number" id="iob-manual-inp" inputmode="decimal" placeholder="0.0" step="0.1"
+          style="width:100%;background:var(--surface);border:1.5px solid var(--border);border-radius:10px;padding:10px;color:var(--text);font-family:var(--mono);font-size:20px;text-align:center;-webkit-appearance:none;">
+      </div>
+      <span style="font-family:var(--mono);font-size:13px;color:var(--dim);padding-top:20px;">U</span>
+    </div>
+    <div id="iob-source-lbl" style="font-size:11px;color:var(--warn);margin-top:6px;text-align:right;display:none;">⚠️ Valore manuale attivo — bolo precedente ignorato</div>
+    <button onclick="clearIOB()" id="iob-clear-btn" style="display:none;margin-top:8px;width:100%;background:none;border:1px solid var(--border);border-radius:8px;color:var(--dim);padding:7px;font-size:12px;cursor:pointer;">✕ Azzera IOB</button>
   </div>
  
   <div class="card">
@@ -289,6 +311,10 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--s
  
   <div id="chart-card" class="card anim">
     <div class="card-lbl">Curva previsionale Fiasp</div>
+    <div style="display:flex;gap:14px;margin-bottom:6px;font-size:11px;">
+      <span style="color:var(--accent);">── Con correzione</span>
+      <span style="color:var(--dim);">- - Senza correzione</span>
+    </div>
     <div id="chart-wrap"><canvas id="glu-chart"></canvas></div>
     <div id="chart-ipo-alert"></div>
   </div>
@@ -431,6 +457,8 @@ let S = {
   isf:65, target:120, dia:300, unit:'mgdl',
   sportTarget:160, alertLow:70, alertHigh:250, soundOn:true,
   glucose:'', trend:'→', sport:null, delta:'', iobManual:'',
+  prevBolus:null,   // {dose, ts}
+  pendingCorrection:0, // dose appena calcolata, usata dalla curva
   injections:[],
   timerEnd:null, timerMin:null
 };
@@ -481,8 +509,16 @@ function calcIOB(){
 }
  
 function getEffectiveIOB(){
+  // Priority: manual input > prevBolus > log injections
   const manual=parseFloat(S.iobManual);
-  if(!isNaN(manual)&&manual>=0)return{val:manual,source:'manual'};
+  if(!isNaN(manual)&&manual>=0&&S.iobManual!=='')return{val:manual,source:'manual'};
+  if(S.prevBolus){
+    const mAgo=(Date.now()-S.prevBolus.ts)/60000;
+    if(mAgo<S.dia){
+      const rem=iobRem(mAgo)*S.prevBolus.dose;
+      return{val:rem,source:'bolus',mAgo};
+    }
+  }
   return{val:calcIOB(),source:'log'};
 }
  
@@ -500,29 +536,58 @@ function calcCorrection(){
   const gMg=fromD(gRaw);
   let effISF=S.isf, effTgt=S.target;
   if(S.sport){effISF*=SPORT_F[S.sport];effTgt=S.sportTarget;}
-  const{val:iob,source:iobSrc}=getEffectiveIOB();
+  const{val:iob,source:iobSrc,mAgo}=getEffectiveIOB();
   const raw=(gMg-effTgt)/effISF;
   const net=Math.max(0,raw-iob);
-  return{gMg,raw,net,iob,iobSrc,effISF,effTgt};
+  S.pendingCorrection=net;
+  return{gMg,raw,net,iob,iobSrc,mAgo,effISF,effTgt};
 }
  
 // ── PREDICTIVE CURVE ───────────────────────────────────────────
-function calcCurve(){
+// pendingDose = correzione appena calcolata (iniettata adesso t=0)
+function calcCurve(pendingDose=0){
   const gRaw=parseFloat(S.glucose);
   if(isNaN(gRaw)||gRaw<=0)return null;
   const gMg=fromD(gRaw);
   const rate=getRate();
   const now=Date.now();
-  const pts=[];
-  for(let t=0;t<=S.dia;t+=5){
-    let g=gMg+rate*t;
-    S.injections.forEach(inj=>{
-      const mN=(now-inj.ts)/60000;
-      g-=(iobRem(mN)-iobRem(mN+t))*inj.dose*S.isf;
-    });
-    pts.push({t,g:Math.max(20,g)});
+  const{val:iob}=getEffectiveIOB();
+ 
+  // Tutte le iniezioni attive (log + prevBolus come virtuale)
+  const activeInj=[];
+  S.injections.forEach(inj=>activeInj.push({dose:inj.dose,mAgo:(now-inj.ts)/60000}));
+  if(S.prevBolus&&!S.iobManual){
+    const mAgo=(now-S.prevBolus.ts)/60000;
+    if(mAgo<S.dia)activeInj.push({dose:S.prevBolus.dose,mAgo});
   }
-  return pts;
+  // IOB manuale: lo trattiamo come bolo fatto 1 min fa con dose scalata
+  if(S.iobManual&&!isNaN(parseFloat(S.iobManual))){
+    // già incluso nel calcolo tramite getEffectiveIOB, non serve aggiungere iniezione virtuale
+  }
+ 
+  const ptsBase=[],ptsWith=[];
+  for(let t=0;t<=S.dia;t+=5){
+    // Base: traiettoria senza correzione aggiuntiva (solo IOB esistente)
+    let gB=gMg+rate*t;
+    activeInj.forEach(inj=>{
+      gB-=(iobRem(inj.mAgo)-iobRem(inj.mAgo+t))*inj.dose*S.isf;
+    });
+    // Se IOB manuale, simuliamo la sua azione come decadimento lineare
+    if(S.iobManual&&!isNaN(parseFloat(S.iobManual))){
+      const iobNow=parseFloat(S.iobManual);
+      const frac=Math.max(0,1-t/S.dia);
+      gB-=(iobNow-iobNow*frac)*S.isf;
+    }
+    ptsBase.push({t,g:Math.max(20,gB)});
+ 
+    // Con correzione: aggiunge pendingDose iniettata adesso
+    let gW=gB;
+    if(pendingDose>0){
+      gW-=(iobRem(0)-iobRem(t))*pendingDose*S.isf;
+    }
+    ptsWith.push({t,g:Math.max(20,gW)});
+  }
+  return{ptsBase,ptsWith};
 }
  
 // ── SOUNDS ─────────────────────────────────────────────────────
@@ -604,23 +669,25 @@ const zonePlugin={
 };
  
 function updateChart(){
-  const pts=calcCurve();
+  const res=calcCurve(S.pendingCorrection||0);
   const card=document.getElementById('chart-card');
-  if(!pts){card.style.display='none';return;}
+  if(!res){card.style.display='none';if(gChart){gChart.destroy();gChart=null;}return;}
   card.style.display='block';
  
+  const{ptsBase,ptsWith}=res;
   const now=Date.now();
-  const labels=pts.map(p=>{
+  const labels=ptsBase.map(p=>{
     const d=new Date(now+p.t*60000);
     return d.getHours().toString().padStart(2,'0')+':'+d.getMinutes().toString().padStart(2,'0');
   });
-  const data=pts.map(p=>toD(p.g));
+  const dataBase=ptsBase.map(p=>toD(p.g));
+  const dataWith=ptsWith.map(p=>toD(p.g));
  
-  // Hypo check
-  const minG=Math.min(...pts.map(p=>p.g));
+  // Hypo check on "with correction" line
+  const minG=Math.min(...ptsWith.map(p=>p.g));
   const ipoEl=document.getElementById('chart-ipo-alert');
   if(minG<S.alertLow){
-    const ipoT=pts.find(p=>p.g<S.alertLow);
+    const ipoT=ptsWith.find(p=>p.g<S.alertLow);
     if(ipoT){
       const d=new Date(now+ipoT.t*60000);
       const ts=d.getHours().toString().padStart(2,'0')+':'+d.getMinutes().toString().padStart(2,'0');
@@ -629,30 +696,27 @@ function updateChart(){
     }
   }else{ipoEl.style.display='none';}
  
-  const yMin=toD(Math.max(30,Math.floor((Math.min(...pts.map(p=>p.g))-20)/10)*10));
-  const yMax=toD(Math.ceil((Math.max(...pts.map(p=>p.g))+30)/10)*10);
- 
-  const segColor=ctx=>{
-    const v=data[ctx.p0DataIndex]*(S.unit==='mmol'?CONV:1);
-    if(v<S.alertLow)return '#ef4444';
-    if(v>S.alertHigh)return '#f59e0b';
-    return '#22d3ee';
-  };
+  const allVals=[...dataBase,...dataWith];
+  const yMin=toD(Math.max(30,Math.floor((Math.min(...allVals.map(v=>v*(S.unit==='mmol'?CONV:1)))-20)/10)*10));
+  const yMax=toD(Math.ceil((Math.max(...allVals.map(v=>v*(S.unit==='mmol'?CONV:1)))+30)/10)*10);
  
   if(gChart){
     gChart.data.labels=labels;
-    gChart.data.datasets[0].data=data;
-    gChart.data.datasets[0].segment={borderColor:segColor};
+    gChart.data.datasets[0].data=dataWith;
+    gChart.data.datasets[1].data=dataBase;
     gChart.options.scales.y.min=yMin;gChart.options.scales.y.max=yMax;
     gChart.update('none');return;
   }
  
   gChart=new Chart(document.getElementById('glu-chart'),{
     type:'line',plugins:[zonePlugin],
-    data:{labels,datasets:[{data,borderColor:'#22d3ee',borderWidth:2.5,pointRadius:0,tension:.35,fill:false,segment:{borderColor:segColor}}]},
+    data:{labels,datasets:[
+      {label:'Con correzione',data:dataWith,borderColor:'#22d3ee',borderWidth:2.5,pointRadius:0,tension:.35,fill:false},
+      {label:'Senza correzione',data:dataBase,borderColor:'#475569',borderWidth:1.5,pointRadius:0,tension:.35,fill:false,borderDash:[5,4]}
+    ]},
     options:{
       responsive:true,maintainAspectRatio:false,animation:false,
-      plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>`${c.parsed.y} ${uStr()}`}}},
+      plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>`${c.dataset.label}: ${c.parsed.y} ${uStr()}`}}},
       scales:{
         x:{grid:{color:'rgba(42,61,94,.6)'},ticks:{color:'#475569',font:{family:'IBM Plex Mono',size:10},maxTicksLimit:7,maxRotation:0}},
         y:{min:yMin,max:yMax,grid:{color:'rgba(42,61,94,.6)'},ticks:{color:'#475569',font:{family:'IBM Plex Mono',size:10}}}
@@ -676,21 +740,54 @@ function updateDeltaLbl(){
   el.textContent=`${sign}${d} ${uStr()} in 15min → tendenza ${arrow} (${(rate>0?'+':'')}${rate.toFixed(1)} ${uStr()}/min)`;
 }
  
+function applyPrevBolus(){
+  const dose=parseFloat(document.getElementById('prev-dose-inp').value);
+  const t=document.getElementById('prev-time-inp').value;
+  if(isNaN(dose)||dose<=0){alert('Inserisci la dose del bolo');return;}
+  if(!t){alert('Inserisci l\'orario del bolo');return;}
+  const[h,m]=t.split(':').map(Number);
+  const ts=new Date();ts.setHours(h,m,0,0);
+  if(ts.getTime()>Date.now())ts.setDate(ts.getDate()-1);
+  const mAgo=(Date.now()-ts.getTime())/60000;
+  if(mAgo>S.dia){alert('Bolo troppo vecchio — fuori dal DIA, IOB = 0');return;}
+  S.prevBolus={dose,ts:ts.getTime()};
+  S.iobManual='';
+  document.getElementById('iob-manual-inp').value='';
+  save();updateIOBPanel();updateChart();soundInfo();
+}
+ 
+function clearIOB(){
+  S.prevBolus=null;S.iobManual='';S.pendingCorrection=0;
+  document.getElementById('prev-dose-inp').value='';
+  document.getElementById('prev-time-inp').value='';
+  document.getElementById('iob-manual-inp').value='';
+  save();updateIOBPanel();updateChart();
+}
+ 
 function updateIOBPanel(){
-  const logIOB=calcIOB();
-  document.getElementById('iob-log-val').textContent=logIOB.toFixed(2)+' U';
-  const manual=parseFloat(S.iobManual);
-  const lbl=document.getElementById('iob-source-lbl');
-  if(!isNaN(manual)&&manual>=0&&S.iobManual!==''){
-    lbl.style.color='var(--warn)';
-    lbl.textContent=`⚠️ Valore manuale attivo — il log (${logIOB.toFixed(2)} U) è ignorato`;
+  const{val:iob,source,mAgo}=getEffectiveIOB();
+  document.getElementById('iob-calc-val').textContent=iob.toFixed(2)+' U';
+  const sub=document.getElementById('iob-calc-sub');
+  const srcLbl=document.getElementById('iob-source-lbl');
+  const clearBtn=document.getElementById('iob-clear-btn');
+ 
+  if(source==='manual'){
+    sub.innerHTML=`<span style="color:var(--warn)">Valore diretto</span>`;
+    srcLbl.style.display='block';
+    clearBtn.style.display='block';
+  }else if(source==='bolus'&&S.prevBolus){
+    const hAgo=Math.floor(mAgo/60),mAgoMin=Math.round(mAgo%60);
+    const agoStr=hAgo>0?`${hAgo}h ${mAgoMin}min fa`:`${Math.round(mAgo)}min fa`;
+    sub.innerHTML=`Bolo ${S.prevBolus.dose}U · ${agoStr}<br><span style="color:var(--ok)">${Math.round(iobRem(mAgo)*100)}% residuo</span>`;
+    srcLbl.style.display='none';
+    clearBtn.style.display='block';
   }else{
-    lbl.textContent='';
+    sub.innerHTML=`<span style="color:var(--dim)">Nessun bolo inserito</span>`;
+    srcLbl.style.display='none';
+    clearBtn.style.display='none';
   }
   updateIOBBadge();
 }
- 
-function goToLog(){switchTab('log');}
 function updateGluZone(){
   const gRaw=parseFloat(S.glucose);
   const inp=document.getElementById('glu-inp');
@@ -721,8 +818,8 @@ function renderResult(){
   const card=document.getElementById('result-card');
   if(!r){card.style.display='none';return;}
  
-  const{gMg,raw,net,iob,iobSrc,effISF,effTgt}=r;
-  const iobLabel=iobSrc==='manual'?'IOB manuale (inserito)':'IOB da log iniezioni';
+  const{gMg,raw,net,iob,iobSrc,mAgo,effISF,effTgt}=r;
+  const iobLabel=iobSrc==='manual'?'IOB diretto (microinfusore)':iobSrc==='bolus'?`IOB bolo ${S.prevBolus?.dose}U`:'IOB da log';
   let warnHtml='';
   if(gMg<S.alertLow){
     warnHtml=`<div class="warn-box">🚨 <span><strong>Glicemia troppo bassa!</strong> Non correggere — tratta l'ipoglicemia con carboidrati ad assorbimento rapido.</span></div>`;
@@ -972,8 +1069,9 @@ function init(){
   const mi=document.getElementById('iob-manual-inp');
   if(S.iobManual!==undefined&&S.iobManual!=='')mi.value=S.iobManual;
   mi.addEventListener('input',e=>{
-    S.iobManual=e.target.value;save();
-    updateIOBPanel();
+    S.iobManual=e.target.value;
+    if(S.iobManual!=='')S.prevBolus=null;
+    save();updateIOBPanel();updateChart();
   });
  
   document.getElementById('calc-btn').addEventListener('click',()=>{
