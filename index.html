@@ -243,14 +243,25 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--s
  
   <div class="card">
     <div class="card-lbl">Variazione glicemia — ultimi 15 min</div>
-    <div class="glu-row" style="gap:10px">
-      <input type="number" id="delta-inp" inputmode="decimal" placeholder="es. −15" autocomplete="off"
-        style="flex:1;background:var(--surface);border:2px solid var(--border);border-radius:12px;padding:12px;font-family:var(--mono);font-size:26px;font-weight:600;color:var(--text);text-align:center;-webkit-appearance:none;width:0;">
-      <span id="delta-unit-tag" style="font-family:var(--mono);font-size:12px;color:var(--muted);white-space:nowrap;">mg/dL<br>/ 15min</span>
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;">
+      <button onclick="stepDelta(-5)" style="width:48px;height:48px;border-radius:12px;border:1.5px solid var(--border);background:var(--surface);color:var(--text);font-size:22px;font-weight:700;cursor:pointer;flex-shrink:0;">−</button>
+      <button onclick="stepDelta(-1)" style="width:40px;height:48px;border-radius:10px;border:1.5px solid var(--border);background:var(--surface);color:var(--muted);font-size:16px;font-weight:700;cursor:pointer;flex-shrink:0;">-1</button>
+      <div id="delta-display" style="flex:1;background:var(--surface);border:2px solid var(--border);border-radius:12px;padding:10px;font-family:var(--mono);font-size:28px;font-weight:600;color:var(--text);text-align:center;min-width:0;">0</div>
+      <button onclick="stepDelta(+1)" style="width:40px;height:48px;border-radius:10px;border:1.5px solid var(--border);background:var(--surface);color:var(--muted);font-size:16px;font-weight:700;cursor:pointer;flex-shrink:0;">+1</button>
+      <button onclick="stepDelta(+5)" style="width:48px;height:48px;border-radius:12px;border:1.5px solid var(--border);background:var(--surface);color:var(--text);font-size:22px;font-weight:700;cursor:pointer;flex-shrink:0;">+</button>
     </div>
-    <div id="delta-lbl" style="font-size:11px;color:var(--muted);text-align:right;margin-top:5px;height:14px;"></div>
+    <div id="delta-lbl" style="font-size:11px;color:var(--muted);text-align:right;margin-bottom:10px;min-height:14px;"></div>
+    <div style="display:flex;gap:6px;flex-wrap:wrap;">
+      <button onclick="setDeltaPreset(-20)" class="seg-btn" style="font-size:11px;">−20</button>
+      <button onclick="setDeltaPreset(-10)" class="seg-btn" style="font-size:11px;">−10</button>
+      <button onclick="setDeltaPreset(-5)" class="seg-btn" style="font-size:11px;">−5</button>
+      <button onclick="setDeltaPreset(0)" class="seg-btn" style="font-size:11px;">0</button>
+      <button onclick="setDeltaPreset(+5)" class="seg-btn" style="font-size:11px;">+5</button>
+      <button onclick="setDeltaPreset(+10)" class="seg-btn" style="font-size:11px;">+10</button>
+      <button onclick="setDeltaPreset(+20)" class="seg-btn" style="font-size:11px;">+20</button>
+    </div>
     <div style="margin-top:10px">
-      <div class="card-lbl" style="margin-bottom:6px">O usa tendenza CGM</div>
+      <div class="card-lbl" style="margin-bottom:6px">O usa freccia CGM</div>
       <div class="btn-row" id="trend-row"></div>
     </div>
   </div>
@@ -731,19 +742,33 @@ function updateChart(){
   });
 }
  
+function stepDelta(step){
+  const cur=parseFloat(S.delta)||0;
+  setDeltaPreset(cur+step);
+}
+ 
+function setDeltaPreset(val){
+  S.delta=val.toString();save();
+  const el=document.getElementById('delta-display');
+  if(el){
+    el.textContent=(val>0?'+':'')+val;
+    el.style.color=val<-10?'var(--danger)':val>10?'var(--warn)':'var(--text)';
+    el.style.borderColor=val<-10?'var(--danger-b)':val>10?'var(--warn-b)':'var(--border)';
+  }
+  updateDeltaLbl();updateChart();
+}
 function updateDeltaLbl(){
-  const d=parseFloat(S.delta);
+  const d=parseFloat(S.delta)||0;
   const el=document.getElementById('delta-lbl');
-  if(isNaN(d)||S.delta===''){el.textContent='';return;}
+  if(!el)return;
   const rate=d/15;
   let arrow='→';
   if(rate<-2)arrow='↓↓';
   else if(rate<-0.5)arrow='↓';
   else if(rate>2)arrow='↑↑';
   else if(rate>0.5)arrow='↑';
-  const sign=d>0?'+':'';
   el.style.color=d<-10?'var(--danger)':d>10?'var(--warn)':'var(--ok)';
-  el.textContent=`${sign}${d} ${uStr()} in 15min → tendenza ${arrow} (${(rate>0?'+':'')}${rate.toFixed(1)} ${uStr()}/min)`;
+  el.textContent=d===0?'Stabile →':`${d>0?'+':''}${d} ${uStr()} in 15min → ${arrow} (${rate>0?'+':''}${rate.toFixed(1)} /min)`;
 }
  
 function applyPrevBolus(){
@@ -934,7 +959,6 @@ function setUnit(u){
   save();
   document.getElementById('unit-tag').textContent=uStr();
   document.getElementById('sport-unit-tag').textContent=uStr();
-  document.getElementById('delta-unit-tag').textContent=uStr()+'\n/ 15min';
   document.getElementById('sport-tgt-inp').value=toD(S.sportTarget);
   renderSettings();updateGluZone();updateDeltaLbl();updateChart();
 }
@@ -1065,12 +1089,9 @@ function init(){
     updateGluZone();updateChart();
   });
  
-  const di=document.getElementById('delta-inp');
-  if(S.delta!==undefined&&S.delta!=='')di.value=S.delta;
-  di.addEventListener('input',e=>{
-    S.delta=e.target.value;save();
-    updateDeltaLbl();updateChart();
-  });
+  // Init delta display
+  const initDelta=parseFloat(S.delta)||0;
+  setDeltaPreset(initDelta);
  
   const mi=document.getElementById('iob-manual-inp');
   if(S.iobManual!==undefined&&S.iobManual!=='')mi.value=S.iobManual;
